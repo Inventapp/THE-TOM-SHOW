@@ -258,6 +258,32 @@ body{min-height:100vh;background:var(--deep);font-family:'Rajdhani',sans-serif;o
 .hs-reveal-row{font-family:'Rajdhani',sans-serif;font-size:.85rem;color:rgba(255,255,255,.6);}
 .hs-next{margin-top:8px;padding:10px 26px;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;color:#fff;background:linear-gradient(135deg,var(--electric),var(--purple));border:none;border-radius:7px;cursor:pointer;transition:all .2s;}
 .hs-next:hover{transform:translateY(-2px);}
+/* HITSTER — GUIDE SELECTION */
+.hs-guide-wrap{display:flex;flex-direction:column;align-items:center;gap:18px;padding:20px 16px;text-align:center;width:100%;max-width:740px;}
+.hs-guide-eyebrow{font-family:'Orbitron',sans-serif;font-size:.55rem;letter-spacing:.6em;color:rgba(168,85,247,.6);text-transform:uppercase;}
+.hs-guide-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,7vw,4rem);letter-spacing:.05em;background:linear-gradient(135deg,#fff,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hs-guide-sub{font-family:'Rajdhani',sans-serif;font-size:.9rem;color:rgba(255,255,255,.38);margin-top:-6px;}
+.hs-guide-cards{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:6px;}
+.hs-gc{width:148px;cursor:pointer;animation:cardIn .6s both;}
+.hs-gc:nth-child(1){animation-delay:.1s;}.hs-gc:nth-child(2){animation-delay:.3s;}.hs-gc:nth-child(3){animation-delay:.5s;}
+.hs-gc-inner{position:relative;width:148px;height:210px;transform-style:preserve-3d;transition:transform .7s cubic-bezier(.22,1,.36,1);}
+.hs-gc.hs-flipped .hs-gc-inner{transform:rotateY(180deg);}
+.hs-gc-front,.hs-gc-back{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;border:1.5px solid rgba(168,85,247,.3);background:rgba(11,21,53,.92);}
+.hs-gc-front{transition:border-color .2s,box-shadow .2s;}
+.hs-gc:hover:not(.hs-flipped) .hs-gc-front{border-color:rgba(168,85,247,.85);box-shadow:0 0 26px rgba(168,85,247,.4);}
+.hs-gc-back{transform:rotateY(180deg);padding:16px 12px;background:rgba(50,10,100,.95);border-color:rgba(168,85,247,.8);box-shadow:0 0 30px rgba(168,85,247,.3);}
+.hs-gc-disc{font-size:3rem;}
+.hs-gc-q{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:900;color:rgba(168,85,247,.35);}
+.hs-gc-back-year{font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:900;color:var(--violet);}
+.hs-gc-back-song{font-family:'Rajdhani',sans-serif;font-size:.9rem;font-weight:700;color:#fff;text-align:center;line-height:1.3;}
+.hs-gc-back-art{font-family:'Rajdhani',sans-serif;font-size:.75rem;color:rgba(255,255,255,.48);text-align:center;}
+/* Gap buttons Hitster timeline */
+.hs-tl-gap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:5px;flex-shrink:0;}
+.hs-tl-gap[onclick]{cursor:pointer;}
+.hs-tl-gap-btn{width:22px;height:22px;border-radius:50%;border:2px solid rgba(168,85,247,.4);background:rgba(0,0,0,.5);color:rgba(168,85,247,.55);font-size:.85rem;display:flex;align-items:center;justify-content:center;font-weight:900;transition:all .15s;animation:gapPulse 2s ease-in-out infinite;}
+.hs-tl-gap[onclick]:hover .hs-tl-gap-btn{border-color:var(--violet);color:var(--violet);background:rgba(168,85,247,.25);transform:scale(1.35);box-shadow:0 0 14px rgba(168,85,247,.5);animation:none;}
+.hs-tl-gap.hs-gap-selected .hs-tl-gap-btn{border-color:var(--gold);color:var(--gold);background:rgba(245,158,11,.25);box-shadow:0 0 16px rgba(245,158,11,.5);transform:scale(1.2);animation:none;font-size:.65rem;}
+.hs-place-hint{font-family:'Orbitron',sans-serif;font-size:.48rem;letter-spacing:.22em;color:rgba(168,85,247,.5);text-transform:uppercase;text-align:center;width:100%;max-width:600px;}
 /* 2 VERDADES 1 MENTIRA */
 #screen-verdad{justify-content:flex-start;padding:0;}
 .vd-body{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;padding:30px 24px 24px;gap:24px;overflow-y:auto;}
@@ -1539,7 +1565,7 @@ const HS_DATA=[
   {song:"Gangnam Style",artist:"PSY",year:2012,youtubeId:"9bZkp7q19f0",accepted:{song:["gangnam style","gangnam"],artist:["psy"]}},
 ];
 
-let hsQueue=[],hsGuide=null,hsTLCards=[],hsIdx=0,hsTotalScore=0,hsSubmitted=false;
+let hsQueue=[],hsGuide=null,hsTimeline=[],hsIdx=0,hsTotalScore=0,hsSubmitted=false,hsPlacedAt=-1,_hsGO=[],_hsGR=[];
 
 function hsnorm(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();}
 function hsMatch(guess,accepted){
@@ -1557,41 +1583,92 @@ function hsMatch(guess,accepted){
   });
 }
 
-function hsTLHtml(){
-  if(hsTLCards.length===0)return '';
-  const sorted=[...hsTLCards].sort((a,b)=>a.year-b.year);
-  const items=sorted.map(s=>`<div class="hs-tl-card${s.guide?' hs-tl-guide':''}">
-      <div class="hs-tl-label">
-        <div class="hs-tl-year">${s.year}${s.guide?' ⭐':''}</div>
-        <div class="hs-tl-song" title="${s.song}">${s.song}</div>
-        <div class="hs-tl-art">${s.artist}</div>
-      </div>
-      <div class="hs-tl-dot"></div>
-    </div>`);
-  const inner=items.join('<div class="hs-tl-arr">▸</div>');
+function hsTLWithGapsHtml(placing=false){
+  if(hsTimeline.length===0)return '';
+  const sorted=[...hsTimeline].sort((a,b)=>a.year-b.year);
+  const n=sorted.length;
+  const cards=sorted.map(s=>`<div class="hs-tl-card${s.guide?' hs-tl-guide':''}">
+    <div class="hs-tl-label">
+      <div class="hs-tl-year">${s.year}${s.guide?' ⭐':''}</div>
+      <div class="hs-tl-song" title="${s.song}">${s.song}</div>
+      <div class="hs-tl-art">${s.artist}</div>
+    </div>
+    <div class="hs-tl-dot"></div>
+  </div>`);
+  let inner='';
+  for(let i=0;i<=n;i++){
+    const sel=placing&&hsPlacedAt===i;
+    const clickable=placing&&!hsSubmitted;
+    inner+=`<div class="hs-tl-gap${sel?' hs-gap-selected':''}" ${clickable?`onclick="hsSelectGap(${i})"`:''}>
+      <div class="hs-tl-gap-btn" style="${clickable?'':'animation:none;opacity:.12;pointer-events:none;'}">${sel?'★':'+'}</div>
+    </div>`;
+    if(i<n)inner+=cards[i];
+  }
   return `<div class="hs-tl-section">
     <div class="hs-tl-header"><span class="hs-tl-lbl">🎵 Línea de tiempo musical</span><span class="hs-tl-hint">⭐ = canción guía (año visible)</span></div>
     <div class="hs-tl-wrap" id="hsTLWrap"><div class="hs-tl-inner"><div class="hs-tl-line"></div>${inner}</div></div>
   </div>`;
 }
+function hsCheckPlacement(year,gapIdx,sorted){
+  const n=sorted.length;
+  if(n===0)return true;
+  if(gapIdx===0)return year<=sorted[0].year;
+  if(gapIdx===n)return year>=sorted[n-1].year;
+  return year>=sorted[gapIdx-1].year&&year<=sorted[gapIdx].year;
+}
+function hsSelectGap(idx){
+  if(hsSubmitted)return;
+  hsPlacedAt=idx;
+  const tl=document.querySelector('.hs-tl-section');
+  if(tl){tl.outerHTML=hsTLWithGapsHtml(true);setTimeout(()=>{const w=document.getElementById('hsTLWrap');if(w)w.scrollLeft=9999;},60);}
+  const btn=document.getElementById('hsConfirm');
+  if(btn)btn.disabled=false;
+  const hint=document.getElementById('hsPlaceHint');
+  if(hint)hint.textContent='✓ Posición marcada — completa los campos y confirma';
+}
 
 function hsInit(){
-  const sh=shuffle(HS_DATA);
-  hsGuide={...sh[0],guide:true};
-  hsQueue=sh.slice(1);
-  hsTLCards=[hsGuide];
-  hsIdx=0;hsTotalScore=0;hsSubmitted=false;
+  hsKillAudio();
+  hsTimeline=[];hsQueue=[];hsPlacedAt=-1;hsIdx=0;hsTotalScore=0;hsSubmitted=false;
   document.getElementById('hsScore').textContent='0';
-  hsRender();
+  const sh=shuffle(HS_DATA);
+  _hsGO=sh.slice(0,3);_hsGR=sh.slice(3);
+  hsShowGuideSelection();
+}
+function hsShowGuideSelection(){
+  document.getElementById('hsBody').innerHTML=`<div class="hs-guide-wrap">
+    <div class="hs-guide-eyebrow">✦ Selección inicial ✦</div>
+    <div class="hs-guide-title">¿Cuál es tu<br>canción guía?</div>
+    <div class="hs-guide-sub">Su año será visible en el timeline como referencia</div>
+    <div class="hs-guide-cards">${_hsGO.map((s,i)=>`<div class="hs-gc" id="hsGC${i}" onclick="hsPickGuide(${i})">
+      <div class="hs-gc-inner">
+        <div class="hs-gc-front"><div class="hs-gc-disc">🎵</div><div class="hs-gc-q">?</div></div>
+        <div class="hs-gc-back">
+          <div class="hs-gc-back-year">${s.year}</div>
+          <div class="hs-gc-back-song">${s.song}</div>
+          <div class="hs-gc-back-art">${s.artist}</div>
+        </div>
+      </div>
+    </div>`).join('')}
+    </div>
+  </div>`;
+}
+function hsPickGuide(idx){
+  _hsGO.forEach((_,i)=>document.getElementById(`hsGC${i}`)?.classList.add('hs-flipped'));
+  setTimeout(()=>{
+    hsGuide={..._hsGO[idx],guide:true};
+    hsTimeline=[hsGuide];
+    hsQueue=shuffle([..._hsGO.filter((_,i)=>i!==idx),..._hsGR]);
+    hsIdx=0;hsPlacedAt=-1;
+    setTimeout(()=>hsRender(),700);
+  },650);
 }
 
 function hsRender(){
   if(hsIdx>=hsQueue.length){hsEnd();return;}
-  hsSubmitted=false;
-  const q=hsQueue[hsIdx];
-  const body=document.getElementById('hsBody');
-  body.innerHTML=`
-    ${hsTLHtml()}
+  hsSubmitted=false;hsPlacedAt=-1;
+  document.getElementById('hsBody').innerHTML=`
+    ${hsTLWithGapsHtml(true)}
     <div style="font-family:'Orbitron',sans-serif;font-size:.55rem;letter-spacing:.4em;color:rgba(168,85,247,.5);text-transform:uppercase;width:100%;max-width:600px;text-align:center;">Canción ${hsIdx+1} de ${hsQueue.length}</div>
     <div class="hs-player-wrap">
       <div class="hs-player-top">
@@ -1611,22 +1688,18 @@ function hsRender(){
     </div>
     <div class="hs-inputs">
       <div class="hs-field-row">
-        <div class="hs-field-lbl">AÑO</div>
-        <input class="hs-field-input" id="hsYear" placeholder="Ej: 1985" type="number" min="1900" max="2030">
-        <span class="hs-check-icon" id="hsYearIco"></span>
-      </div>
-      <div class="hs-field-row">
         <div class="hs-field-lbl">CANCIÓN</div>
-        <input class="hs-field-input" id="hsSong" placeholder="Nombre completo de la canción">
+        <input class="hs-field-input" id="hsSong" placeholder="Nombre de la canción" onkeydown="if(event.key==='Enter')document.getElementById('hsArtist').focus()">
         <span class="hs-check-icon" id="hsSongIco"></span>
       </div>
       <div class="hs-field-row">
         <div class="hs-field-lbl">ARTISTA</div>
-        <input class="hs-field-input" id="hsArtist" placeholder="Nombre del artista">
+        <input class="hs-field-input" id="hsArtist" placeholder="Nombre del artista" onkeydown="if(event.key==='Enter')hsConfirm()">
         <span class="hs-check-icon" id="hsArtistIco"></span>
       </div>
     </div>
-    <button class="hs-confirm" id="hsConfirm" onclick="hsConfirm()">✓ CONFIRMAR</button>
+    <div class="hs-place-hint" id="hsPlaceHint">👆 Toca un + en el timeline para ubicar la canción</div>
+    <button class="hs-confirm" id="hsConfirm" onclick="hsConfirm()" disabled>✓ CONFIRMAR</button>
     <div class="hs-result-banner" id="hsResult">
       <div class="res-title" id="hsResTitle"></div>
       <div class="res-pts" id="hsResPts"></div>
@@ -1682,32 +1755,41 @@ function hsPlay(){
 }
 
 function hsConfirm(){
-  if(hsSubmitted)return;hsSubmitted=true;
+  if(hsSubmitted||hsPlacedAt<0){
+    if(hsPlacedAt<0)showToast('👆 Primero ubica la canción en el timeline','info',2000);
+    return;
+  }
+  hsSubmitted=true;
   hsKillAudio();
   const q=hsQueue[hsIdx];
-  const yearVal=parseInt(document.getElementById('hsYear').value)||0;
   const songVal=document.getElementById('hsSong').value.trim();
   const artVal=document.getElementById('hsArtist').value.trim();
-  const okYear=yearVal===q.year;
-  const okSong=songVal.length>=4&&hsMatch(songVal,q.accepted.song);
-  const okArt=artVal.length>=4&&hsMatch(artVal,q.accepted.artist);
-  const pts=[okYear,okSong,okArt].filter(Boolean).length;
+  const sorted=[...hsTimeline].sort((a,b)=>a.year-b.year);
+  const okPlace=hsCheckPlacement(q.year,hsPlacedAt,sorted);
+  const okSong=songVal.length>=2&&hsMatch(songVal,q.accepted.song);
+  const okArt=artVal.length>=2&&hsMatch(artVal,q.accepted.artist);
+  const pts=[okPlace,okSong,okArt].filter(Boolean).length;
   hsTotalScore+=pts;document.getElementById('hsScore').textContent=hsTotalScore;
-  ['Year','Song','Artist'].forEach((f,i)=>{
-    const ok=[okYear,okSong,okArt][i];
-    document.getElementById(`hs${f}`).classList.add(ok?'correct':'wrong');
-    document.getElementById(`hs${f}`).disabled=true;
-    document.getElementById(`hs${f}Ico`).textContent=ok?'✅':'❌';
+  ['Song','Artist'].forEach((f,i)=>{
+    const ok=[okSong,okArt][i];
+    const inp=document.getElementById(`hs${f}`);
+    if(inp){inp.classList.add(ok?'correct':'wrong');inp.disabled=true;}
+    const ico=document.getElementById(`hs${f}Ico`);
+    if(ico)ico.textContent=ok?'✅':'❌';
   });
   document.getElementById('hsConfirm').disabled=true;
-  hsTLCards.push({...q,guide:false});
+  hsTimeline.push({...q,guide:false});
   const tlSec=document.querySelector('.hs-tl-section');
-  if(tlSec){tlSec.outerHTML=hsTLHtml();setTimeout(()=>{const w=document.getElementById('hsTLWrap');if(w)w.scrollLeft=9999;},80);}
+  if(tlSec){tlSec.outerHTML=hsTLWithGapsHtml(false);setTimeout(()=>{const w=document.getElementById('hsTLWrap');if(w)w.scrollLeft=9999;},60);}
+  const placeMsg=okPlace?`✅ Posición correcta (${q.year})`:`❌ Año era ${q.year}`;
   const res=document.getElementById('hsResult');
-  document.getElementById('hsResTitle').textContent=pts===3?'¡PERFECTO! 🎉':pts>0?'¡Bien!':'Sin puntos 😔';
+  document.getElementById('hsResTitle').textContent=pts===3?'¡PERFECTO! 🎉':pts>0?'¡Bien! 👍':'Sin puntos 😔';
   document.getElementById('hsResPts').textContent=`+${pts} PUNTO${pts!==1?'S':''}`;
-  document.getElementById('hsReveal').innerHTML=`<strong>${q.song}</strong> — ${q.artist} (${q.year})`;
+  document.getElementById('hsReveal').innerHTML=`<strong>${q.song}</strong> — ${q.artist} (${q.year})<br><span style="font-size:.78rem;opacity:.7">${placeMsg}</span>`;
   res.className=`hs-result-banner show ${pts===3?'correct':'partial'}`;
+  showToast(pts===3?'¡Perfecto! 🎉':pts>0?`+${pts} puntos`:'Sin puntos',pts>0?'correct':'wrong',2000);
+  const nextBtn=res.querySelector('.hs-next');
+  if(nextBtn)nextBtn.textContent=hsIdx<hsQueue.length-1?'SIGUIENTE CANCIÓN →':'VER RESULTADO';
 }
 function hsNext(){hsKillAudio();hsIdx++;hsRender();}
 function hsKillAudio(){
@@ -1721,7 +1803,7 @@ function hsEnd(){
   hsKillAudio();
   gsOnEnd(hsTotalScore+' puntos');
   document.getElementById('hsBody').innerHTML=`
-    ${hsTLHtml()}
+    ${hsTLWithGapsHtml(false)}
     <div style="text-align:center;padding:24px 0 16px;max-width:500px;width:100%;">
       <div style="font-size:3rem;margin-bottom:12px;">🎤</div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;background:linear-gradient(135deg,#fff,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.08em;">¡JUEGO TERMINADO!</div>
