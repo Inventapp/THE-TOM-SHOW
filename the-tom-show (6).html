@@ -226,11 +226,11 @@ body{min-height:100vh;background:var(--deep);font-family:'Rajdhani',sans-serif;o
 .hs-play-btn{padding:13px 36px;font-family:'Orbitron',sans-serif;font-size:.75rem;font-weight:900;letter-spacing:.2em;color:#fff;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:8px;cursor:pointer;transition:all .2s;box-shadow:0 0 20px rgba(124,58,237,.4);}
 .hs-play-btn:hover{transform:translateY(-2px);box-shadow:0 0 35px rgba(168,85,247,.6);}
 /* Hidden YouTube iframe - audio only visible */
-.hs-audio-wrap{position:relative;width:100%;height:0;overflow:hidden;}
+.hs-audio-wrap{position:relative;width:100%;height:0;overflow:hidden;background:#0a0a1a;}
 .hs-audio-wrap.playing{height:60px;}
-.hs-audio-wrap iframe{position:absolute;top:0;left:0;width:100%;height:300px;border:none;}
-.hs-audio-cover{position:absolute;top:0;left:0;right:0;bottom:0;background:#0a0a1a;z-index:2;pointer-events:none;}
-.hs-audio-bar{height:60px;display:none;align-items:center;justify-content:center;gap:8px;padding:0 20px;}
+.hs-audio-wrap iframe,.hs-audio-wrap #hsYTPlayer{position:absolute;top:-120px;left:-120px;width:calc(100% + 240px);height:340px;border:none;pointer-events:none;}
+.hs-audio-cover{position:absolute;top:0;left:0;right:0;bottom:0;background:#0a0a1a;z-index:3;pointer-events:none;}
+.hs-audio-bar{position:relative;z-index:4;height:60px;display:none;align-items:center;justify-content:center;gap:8px;padding:0 20px;background:#0a0a1a;}
 .hs-audio-wrap.playing .hs-audio-bar{display:flex;}
 .hs-bar-dot{width:4px;background:var(--violet);border-radius:2px;animation:barAnim 1s ease-in-out infinite;}
 .hs-bar-dot:nth-child(1){height:20px;animation-delay:0s;}.hs-bar-dot:nth-child(2){height:35px;animation-delay:.15s;}.hs-bar-dot:nth-child(3){height:28px;animation-delay:.3s;}.hs-bar-dot:nth-child(4){height:40px;animation-delay:.1s;}.hs-bar-dot:nth-child(5){height:22px;animation-delay:.25s;}.hs-bar-dot:nth-child(6){height:34px;animation-delay:.05s;}.hs-bar-dot:nth-child(7){height:18px;animation-delay:.2s;}
@@ -565,7 +565,7 @@ input[type=range].pr-range::-moz-range-thumb{width:38px;height:38px;border-radiu
 <!-- HITSTER -->
 <div class="screen hidden" id="screen-hitster">
   <div class="game-header">
-    <div class="gh-left"><button class="gh-back-btn" onclick="goToGames()">← VOLVER</button><div><div class="gh-title">THE TOM SHOW</div><div class="gh-label">▸ Hitster</div></div></div>
+    <div class="gh-left"><button class="gh-back-btn" onclick="hsKillAudio();goToGames()">← VOLVER</button><div><div class="gh-title">THE TOM SHOW</div><div class="gh-label">▸ Hitster</div></div></div>
     <div class="score-pill">PUNTOS: <span id="hsScore">0</span></div>
   </div>
   <div class="hs-body" id="hsBody"></div>
@@ -1599,13 +1599,14 @@ function hsRender(){
         <button class="hs-play-btn" id="hsPlayBtn" onclick="hsPlay()">▶ REPRODUCIR CANCIÓN</button>
       </div>
       <div class="hs-audio-wrap" id="hsAudioWrap">
+        <div id="hsYTPlayer"></div>
+        <div class="hs-audio-cover"></div>
         <div class="hs-audio-bar">
           <div class="hs-bar-dot"></div><div class="hs-bar-dot"></div><div class="hs-bar-dot"></div>
           <div class="hs-bar-dot"></div><div class="hs-bar-dot"></div><div class="hs-bar-dot"></div>
           <div class="hs-bar-dot"></div>
           <span class="hs-audio-lbl">REPRODUCIENDO...</span>
         </div>
-        <div class="hs-audio-cover"></div>
       </div>
     </div>
     <div class="hs-inputs">
@@ -1635,18 +1636,54 @@ function hsRender(){
   setTimeout(()=>{const w=document.getElementById('hsTLWrap');if(w)w.scrollLeft=9999;},80);
 }
 
-function hsPlay(){
-  const q=hsQueue[hsIdx];
-  window.open(`https://music.youtube.com/watch?v=${q.youtubeId}`,'_blank','noopener');
-  document.getElementById('hsDisc').classList.add('spinning');
-  document.getElementById('hsAudioWrap').classList.add('playing');
+let hsYTPlayer=null,hsYTReady=false,hsYTPending=null,hsIsPlaying=false;
+function onYouTubeIframeAPIReady(){hsYTReady=true;if(hsYTPending){const id=hsYTPending;hsYTPending=null;hsCreatePlayer(id);}}
+function hsCreatePlayer(videoId){
+  const el=document.getElementById('hsYTPlayer');
+  if(!el)return;
+  hsYTPlayer=new YT.Player('hsYTPlayer',{
+    videoId,
+    playerVars:{autoplay:1,controls:0,disablekb:1,modestbranding:1,rel:0,showinfo:0,iv_load_policy:3,fs:0,playsinline:1},
+    events:{
+      onReady:e=>{e.target.playVideo();hsSetPlayingUI(true);},
+      onStateChange:e=>{
+        if(e.data===YT.PlayerState.PLAYING)hsSetPlayingUI(true);
+        else if(e.data===YT.PlayerState.PAUSED||e.data===YT.PlayerState.ENDED)hsSetPlayingUI(false);
+      }
+    }
+  });
+}
+function hsSetPlayingUI(playing){
+  hsIsPlaying=playing;
+  const wrap=document.getElementById('hsAudioWrap');
+  const disc=document.getElementById('hsDisc');
   const btn=document.getElementById('hsPlayBtn');
-  btn.textContent='🎵 ABRIÓ EN YOUTUBE MUSIC';
-  btn.style.background='linear-gradient(135deg,#1db954,#1aa34a)';
+  if(!wrap||!btn)return;
+  if(playing){
+    wrap.classList.add('playing');
+    if(disc)disc.classList.add('spinning');
+    btn.textContent='⏸ PAUSAR';
+    btn.style.background='linear-gradient(135deg,#ef4444,#b91c1c)';
+  } else {
+    wrap.classList.remove('playing');
+    if(disc)disc.classList.remove('spinning');
+    btn.textContent='▶ REPRODUCIR CANCIÓN';
+    btn.style.background='';
+  }
+}
+function hsPlay(){
+  const q=hsQueue[hsIdx];if(!q)return;
+  if(hsYTPlayer&&typeof hsYTPlayer.getPlayerState==='function'){
+    if(hsIsPlaying){hsYTPlayer.pauseVideo();}else{hsYTPlayer.playVideo();}
+    return;
+  }
+  if(!hsYTReady){hsYTPending=q.youtubeId;showToast('Cargando reproductor…','info',1200);return;}
+  hsCreatePlayer(q.youtubeId);
 }
 
 function hsConfirm(){
   if(hsSubmitted)return;hsSubmitted=true;
+  hsKillAudio();
   const q=hsQueue[hsIdx];
   const yearVal=parseInt(document.getElementById('hsYear').value)||0;
   const songVal=document.getElementById('hsSong').value.trim();
@@ -1672,9 +1709,16 @@ function hsConfirm(){
   document.getElementById('hsReveal').innerHTML=`<strong>${q.song}</strong> — ${q.artist} (${q.year})`;
   res.className=`hs-result-banner show ${pts===3?'correct':'partial'}`;
 }
-function hsNext(){hsIdx++;hsRender();}
-function hsKillAudio(){}
+function hsNext(){hsKillAudio();hsIdx++;hsRender();}
+function hsKillAudio(){
+  hsYTPending=null;hsIsPlaying=false;
+  if(hsYTPlayer){
+    try{hsYTPlayer.stopVideo&&hsYTPlayer.stopVideo();hsYTPlayer.destroy&&hsYTPlayer.destroy();}catch(e){}
+    hsYTPlayer=null;
+  }
+}
 function hsEnd(){
+  hsKillAudio();
   gsOnEnd(hsTotalScore+' puntos');
   document.getElementById('hsBody').innerHTML=`
     ${hsTLHtml()}
@@ -2319,5 +2363,6 @@ function atpSurrender(){
 </div>
 <!-- GS Overlay (between teams + host decision) -->
 <div id="gsOverlay" class="gs-overlay hidden"></div>
+<script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
